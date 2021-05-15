@@ -1,8 +1,10 @@
 use directories::ProjectDirs;
+use eyre::{Report, Result};
 use once_cell::sync::OnceCell;
 use serde::{Serialize, Deserialize};
 
-use std::convert::Infallible;
+use std::error;
+use std::fmt;
 use std::fs::{create_dir_all, File};
 use std::io::prelude::*;
 use std::path::PathBuf;
@@ -30,6 +32,22 @@ pub struct Config {
     session_type: SessionType,
 }
 
+#[derive(Debug)]
+pub enum Error {
+    ConfigDirNotFound,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Error::ConfigDirNotFound => write!(f, "could not find configuration directory")
+        }
+    }
+}
+
+impl error::Error for Error {
+}
+
 impl Default for Config {
     fn default() -> Self {
         let server = String::from(XT_SERVER);
@@ -42,10 +60,10 @@ impl Default for Config {
     }
 }
 
-pub fn write_cfg_if_doesnt_exist() {
-    let cfg_dir: &PathBuf = CONFIG_DIR.get_or_try_init::<_, Infallible>(|| {
-        Ok(ProjectDirs::from("", "", "xtpost").unwrap().config_dir().to_path_buf())
-    }).unwrap();
+pub fn write_cfg_if_doesnt_exist() -> Result<()> {
+    let cfg_dir: &PathBuf = CONFIG_DIR.get_or_try_init::<_, eyre::Report>(|| {
+        Ok(ProjectDirs::from("", "", "xtpost").ok_or(Error::ConfigDirNotFound)?.config_dir().to_path_buf())
+    })?;
 
     let mut cfg_file = cfg_dir.clone();
     cfg_file.push("settings.json");
@@ -55,17 +73,19 @@ pub fn write_cfg_if_doesnt_exist() {
     }
 
     if !cfg_file.exists() {
-        let json_cfg = serde_json::to_string_pretty::<Config>(&Default::default()).unwrap();
-        let mut file = File::create(&cfg_file).unwrap();
+        let json_cfg = serde_json::to_string_pretty::<Config>(&Default::default())?;
+        let mut file = File::create(&cfg_file)?;
 
-        file.write_all(&json_cfg.into_bytes()).unwrap();
+        file.write_all(&json_cfg.into_bytes())?;
     }
+
+    Ok(())
 }
 
-pub fn open_editor() {
-    let cfg_dir: &PathBuf = CONFIG_DIR.get_or_try_init::<_, Infallible>(|| {
-        Ok(ProjectDirs::from("", "", "xtpost").unwrap().config_dir().to_path_buf())
-    }).unwrap();
+pub fn open_editor() -> Result<()> {
+    let cfg_dir: &PathBuf = CONFIG_DIR.get_or_try_init::<_, eyre::Report>(|| {
+        Ok(ProjectDirs::from("", "", "xtpost").ok_or(Error::ConfigDirNotFound)?.config_dir().to_path_buf())
+    })?;
 
     let mut cfg_file = cfg_dir.clone();
     cfg_file.push("settings.json");
@@ -78,6 +98,7 @@ pub fn open_editor() {
 
     Command::new(editor)
         .args(&[cfg_file])
-        .status()
-        .expect("editor failed to start");
+        .status()?;
+
+    Ok(())
 }
