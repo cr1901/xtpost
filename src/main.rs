@@ -1,5 +1,5 @@
 use eyre::Result;
-use reqwest::blocking::{Client, multipart};
+use reqwest::blocking::{multipart, Client};
 
 mod args;
 mod cfg;
@@ -19,7 +19,7 @@ fn main() -> Result<()> {
             if c.print_dirs {
                 println!("Config Dir: {}", cfg::config_dir_name()?.to_string_lossy());
                 println!("Data Dir: {}", cfg::data_dir_name()?.to_string_lossy());
-                println!("");
+                println!();
             }
 
             if c.print_cfg {
@@ -40,16 +40,15 @@ fn main() -> Result<()> {
             let form: multipart::Form;
 
             if let Some(e) = cfg.email {
-                form = multipart::Form::new().text("email", e).file("binary", r.binary)?;
+                form = multipart::Form::new()
+                    .text("email", e)
+                    .file("binary", r.binary)?;
             } else {
                 form = multipart::Form::new().file("binary", r.binary)?;
             }
 
-            let client = reqwest::blocking::Client::new();
-            let resp = client
-                    .post(cfg.server)
-                    .multipart(form)
-                    .send()?;
+            let client = Client::new();
+            let resp = client.post(cfg.server).multipart(form).send()?;
 
             println!("{}", resp.text()?);
         }

@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::error;
 use std::fmt;
 use std::fs::{create_dir_all, File};
-use std::io::{BufReader, prelude::*};
+use std::io::prelude::*;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -53,7 +53,7 @@ pub struct Config {
 #[derive(Debug)]
 pub enum Error {
     ConfigDirNotFound,
-    DataLocalDirNotFound
+    DataLocalDirNotFound,
 }
 
 impl fmt::Display for Error {
