@@ -45,9 +45,9 @@ impl Default for SessionType {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
-    email: Option<String>,
-    server: String,
-    session_type: SessionType,
+    pub email: Option<String>,
+    pub server: String,
+    pub session_type: SessionType,
 }
 
 #[derive(Debug)]
@@ -128,4 +128,8 @@ pub fn read_cfg_string() -> Result<String> {
     file.read_to_string(&mut buffer)?;
 
     Ok(buffer)
+}
+
+pub fn read_cfg() -> Result<Config> {
+    Ok(serde_json::from_str(&read_cfg_string()?)?)
 }

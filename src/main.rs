@@ -1,4 +1,5 @@
 use eyre::Result;
+use reqwest::blocking::{Client, multipart};
 
 mod args;
 mod cfg;
@@ -34,7 +35,24 @@ fn main() -> Result<()> {
                 env!("VERGEN_GIT_SHA_SHORT")
             );
         }
-        _ => unimplemented!(),
+        args::SubCommands::Run(r) => {
+            let cfg = cfg::read_cfg()?;
+            let form: multipart::Form;
+
+            if let Some(e) = cfg.email {
+                form = multipart::Form::new().text("email", e).file("binary", r.binary)?;
+            } else {
+                form = multipart::Form::new().file("binary", r.binary)?;
+            }
+
+            let client = reqwest::blocking::Client::new();
+            let resp = client
+                    .post(cfg.server)
+                    .multipart(form)
+                    .send()?;
+
+            println!("{}", resp.text()?);
+        }
     }
 
     Ok(())
