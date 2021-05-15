@@ -1,11 +1,16 @@
 use directories::ProjectDirs;
+use once_cell::sync::OnceCell;
 use serde::{Serialize, Deserialize};
 
+use std::convert::Infallible;
 use std::fs::{create_dir_all, File};
 use std::io::prelude::*;
+use std::path::PathBuf;
 use std::process::Command;
 
 const XT_SERVER: &str = "http://reenigne.mooo.com:8088/cgi-bin/xtserver.exe";
+static CONFIG_DIR: OnceCell<PathBuf> = OnceCell::new();
+static DATA_DIR: OnceCell<PathBuf> = OnceCell::new();
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum SessionType {
@@ -38,7 +43,10 @@ impl Default for Config {
 }
 
 pub fn write_cfg_if_doesnt_exist() {
-    let cfg_dir = ProjectDirs::from("", "", "xtpost").unwrap().config_dir().to_path_buf();
+    let cfg_dir: &PathBuf = CONFIG_DIR.get_or_try_init::<_, Infallible>(|| {
+        Ok(ProjectDirs::from("", "", "xtpost").unwrap().config_dir().to_path_buf())
+    }).unwrap();
+
     let mut cfg_file = cfg_dir.clone();
     cfg_file.push("settings.json");
 
@@ -55,7 +63,10 @@ pub fn write_cfg_if_doesnt_exist() {
 }
 
 pub fn open_editor() {
-    let cfg_dir = ProjectDirs::from("", "", "xtpost").unwrap().config_dir().to_path_buf();
+    let cfg_dir: &PathBuf = CONFIG_DIR.get_or_try_init::<_, Infallible>(|| {
+        Ok(ProjectDirs::from("", "", "xtpost").unwrap().config_dir().to_path_buf())
+    }).unwrap();
+
     let mut cfg_file = cfg_dir.clone();
     cfg_file.push("settings.json");
 
