@@ -71,7 +71,7 @@ pub fn write_cfg_if_doesnt_exist() -> Result<()> {
     cfg_file.push("settings.json");
 
     if !cfg_dir.exists() {
-        create_dir_all(&cfg_dir).unwrap();
+        create_dir_all(&cfg_dir)?;
     }
 
     if !cfg_file.exists() {
