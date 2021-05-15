@@ -24,7 +24,7 @@ fn main() -> Result<()> {
             }
         },
         args::SubCommands::Version(_) => {
-            println!("Version placeholder");
+            println!("{} {} ({})", env!("CARGO_CRATE_NAME"), env!("VERGEN_BUILD_SEMVER"), env!("VERGEN_GIT_SHA_SHORT"));
         },
         _ => unimplemented!()
     }
