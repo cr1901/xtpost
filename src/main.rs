@@ -16,11 +16,14 @@ fn main() -> Result<()> {
             }
 
             if c.print_dirs {
-                unimplemented!();
+                println!("Config Dir: {}", cfg::config_dir_name()?.to_string_lossy());
+                println!("Data Dir: {}", cfg::data_dir_name()?.to_string_lossy());
+                println!("");
             }
 
             if c.print_cfg {
-                unimplemented!();
+                let cfg = cfg::read_cfg_string()?;
+                println!("{}", cfg);
             }
         }
         args::SubCommands::Version(_) => {
