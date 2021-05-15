@@ -1,7 +1,7 @@
 use directories::ProjectDirs;
-use eyre::{Report, Result};
+use eyre::{self, Result};
 use once_cell::sync::OnceCell;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 use std::error;
 use std::fmt;
@@ -16,7 +16,7 @@ static DATA_DIR: OnceCell<PathBuf> = OnceCell::new();
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum SessionType {
-    Reenigne
+    Reenigne,
 }
 
 impl Default for SessionType {
@@ -40,13 +40,12 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::ConfigDirNotFound => write!(f, "could not find configuration directory")
+            Error::ConfigDirNotFound => write!(f, "could not find configuration directory"),
         }
     }
 }
 
-impl error::Error for Error {
-}
+impl error::Error for Error {}
 
 impl Default for Config {
     fn default() -> Self {
@@ -55,14 +54,17 @@ impl Default for Config {
         Config {
             email: None,
             server,
-            session_type: Default::default()
+            session_type: Default::default(),
         }
     }
 }
 
 pub fn write_cfg_if_doesnt_exist() -> Result<()> {
     let cfg_dir: &PathBuf = CONFIG_DIR.get_or_try_init::<_, eyre::Report>(|| {
-        Ok(ProjectDirs::from("", "", "xtpost").ok_or(Error::ConfigDirNotFound)?.config_dir().to_path_buf())
+        Ok(ProjectDirs::from("", "", "xtpost")
+            .ok_or(Error::ConfigDirNotFound)?
+            .config_dir()
+            .to_path_buf())
     })?;
 
     let mut cfg_file = cfg_dir.clone();
@@ -84,7 +86,10 @@ pub fn write_cfg_if_doesnt_exist() -> Result<()> {
 
 pub fn open_editor() -> Result<()> {
     let cfg_dir: &PathBuf = CONFIG_DIR.get_or_try_init::<_, eyre::Report>(|| {
-        Ok(ProjectDirs::from("", "", "xtpost").ok_or(Error::ConfigDirNotFound)?.config_dir().to_path_buf())
+        Ok(ProjectDirs::from("", "", "xtpost")
+            .ok_or(Error::ConfigDirNotFound)?
+            .config_dir()
+            .to_path_buf())
     })?;
 
     let mut cfg_file = cfg_dir.clone();
@@ -96,9 +101,7 @@ pub fn open_editor() -> Result<()> {
         "vi"
     };
 
-    Command::new(editor)
-        .args(&[cfg_file])
-        .status()?;
+    Command::new(editor).args(&[cfg_file]).status()?;
 
     Ok(())
 }
