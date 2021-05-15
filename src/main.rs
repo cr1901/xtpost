@@ -12,7 +12,7 @@ fn main() -> Result<()> {
         args::SubCommands::Cfg(c) => {
             if c.edit {
                 cfg::open_editor()?;
-                return Ok(())
+                return Ok(());
             }
 
             if c.print_dirs {
@@ -22,11 +22,16 @@ fn main() -> Result<()> {
             if c.print_cfg {
                 unimplemented!();
             }
-        },
+        }
         args::SubCommands::Version(_) => {
-            println!("{} {} ({})", env!("CARGO_CRATE_NAME"), env!("VERGEN_BUILD_SEMVER"), env!("VERGEN_GIT_SHA_SHORT"));
-        },
-        _ => unimplemented!()
+            println!(
+                "{} {} ({})",
+                env!("CARGO_CRATE_NAME"),
+                env!("VERGEN_BUILD_SEMVER"),
+                env!("VERGEN_GIT_SHA_SHORT")
+            );
+        }
+        _ => unimplemented!(),
     }
 
     Ok(())

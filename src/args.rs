@@ -4,7 +4,7 @@ use argh::FromArgs;
 /// XT Server HTTP Client
 pub struct XtPostArgs {
     #[argh(subcommand)]
-    pub cmd: SubCommands
+    pub cmd: SubCommands,
 }
 
 #[derive(FromArgs, PartialEq, Debug)]
@@ -12,14 +12,13 @@ pub struct XtPostArgs {
 pub enum SubCommands {
     Version(Version),
     Cfg(CfgArgs),
-    Run(RunArgs)
+    Run(RunArgs),
 }
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// print version info
 #[argh(subcommand, name = "version")]
-pub struct Version {
-}
+pub struct Version {}
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// edit or view configuration directory (edit takes priority)
