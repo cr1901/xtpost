@@ -86,7 +86,14 @@ fn main() -> Result<()> {
                 let client = Client::builder().user_agent(APP_USER_AGENT).build()?;
                 let resp = client.post(cfg.server).multipart(form).send().await?;
 
-                println!("{}", scrape_text(&resp.text().await?));
+                if r.debug {
+                    for h in resp.headers() {
+                        println!("{}: {}", h.0, h.1.to_str()?);
+                    }
+                    println!("{}", &resp.text().await?);
+                } else {
+                    println!("{}", scrape_text(&resp.text().await?));
+                }
 
                 Ok::<(), Report>(())
             })?;

@@ -39,6 +39,9 @@ pub struct CfgArgs {
 /// submit data to XT server and wait for results
 #[argh(subcommand, name = "run")]
 pub struct RunArgs {
+    /// debug mode (return raw HTML and HTTP headers)
+    #[argh(switch, short = 'd')]
+    pub debug: bool,
     #[argh(positional)]
     pub binary: String,
 }
