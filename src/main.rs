@@ -1,13 +1,9 @@
-use bytes::BytesMut;
 use eyre::{Report, Result};
-use futures::{stream::TryStreamExt, TryFutureExt};
+use futures::TryFutureExt;
 use reqwest::{multipart, Body, Client};
 use scraper::{Html, Selector};
 use tokio::{fs::File, runtime};
 use tokio_util::codec::{BytesCodec, FramedRead};
-
-use std::future::Future;
-use std::pin::Pin;
 
 mod args;
 mod cfg;
@@ -53,7 +49,10 @@ fn main() -> Result<()> {
         }
         args::SubCommands::Run(r) => {
             let cfg = cfg::read_cfg()?;
-            let rt = runtime::Builder::new_current_thread().enable_time().enable_io().build()?;
+            let rt = runtime::Builder::new_current_thread()
+                .enable_time()
+                .enable_io()
+                .build()?;
 
             rt.block_on(async {
                 // File length is required to avoid chunked transfer encoding, which XT
@@ -70,10 +69,10 @@ fn main() -> Result<()> {
 
                 let file_body = Body::wrap_stream(file_stream);
                 let file_part = multipart::Part::stream_with_length(file_body, file_len)
-                                    .mime_str("application/octet-stream")?
-                                    .file_name(r.binary);
-                                    // .file_name(&r.binary);
-                                    // Borrow value does not live long enough?
+                    .mime_str("application/octet-stream")?
+                    .file_name(r.binary);
+                // .file_name(&r.binary);
+                // Borrow value does not live long enough?
 
                 let form: multipart::Form;
                 if let Some(e) = cfg.email {
@@ -84,9 +83,7 @@ fn main() -> Result<()> {
                     form = multipart::Form::new().part("binary", file_part);
                 }
 
-                let client = Client::builder()
-                                .user_agent(APP_USER_AGENT)
-                                .build()?;
+                let client = Client::builder().user_agent(APP_USER_AGENT).build()?;
                 let resp = client.post(cfg.server).multipart(form).send().await?;
 
                 println!("{}", scrape_text(&resp.text().await?));
