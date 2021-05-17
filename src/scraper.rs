@@ -1,3 +1,4 @@
+use eyre::{eyre, Report};
 use scraper::{Html, Selector};
 use reqwest::{Error, IntoUrl};
 use url::Url;
@@ -15,6 +16,20 @@ impl Scraper {
             document,
             server: server.into_url()?
         })
+    }
+
+    pub fn image_url(&self) -> Result<Option<String>, Report> {
+        let img = Selector::parse("img").unwrap();
+
+        if let Some(i) = self.document.select(&img).next() {
+            let rel_path = i.value()
+                            .attr("src")
+                            .ok_or(eyre!("img element did not have a src attribute"))?;
+
+            Ok(Some(self.server.join(rel_path)?.into()))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn serial_text(&self) -> String {
@@ -89,5 +104,13 @@ mod test {
                     This concludes your XT server session.\n\n",
             out
         );
+    }
+
+    #[test]
+    fn test_scrape_image_url() {
+        let doc = mk_doc();
+        let out = doc.image_url();
+
+        assert_eq!("http://reenigne.mooo.com:8088/d5JESctuMKW88L-e.png", out.unwrap().unwrap());
     }
 }
