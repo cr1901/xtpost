@@ -1,6 +1,6 @@
 use eyre::{Report, Result};
-use futures::TryFutureExt;
-use reqwest::{multipart, Body, Client};
+use futures::{FutureExt, TryFutureExt};
+use reqwest::{multipart, Body, Client, Response};
 use scraper::{Html, Selector};
 use tokio::{fs::File, runtime};
 use tokio_util::codec::{BytesCodec, FramedRead};
@@ -92,7 +92,7 @@ fn main() -> Result<()> {
                     }
                     println!("{}", &resp.text().await?);
                 } else {
-                    println!("{}", scrape_text(&resp.text().await?));
+                    println!("{}", scrape_text(&get_html_body_from_response(resp).await?));
                 }
 
                 Ok::<(), Report>(())
@@ -103,8 +103,12 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn scrape_text(inp: &str) -> String {
-    let document = Html::parse_document(inp);
+async fn get_html_body_from_response(resp: Response) -> Result<Html> {
+    let text = &resp.text().await?;
+    Ok(Html::parse_document(text))
+}
+
+fn scrape_text(document: &Html) -> String {
     let p_or_pre = Selector::parse("p, pre").unwrap();
 
     let mut out = String::new();
