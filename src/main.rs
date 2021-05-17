@@ -1,7 +1,7 @@
+use ::scraper::Html;
 use eyre::{Report, Result};
 use futures::TryFutureExt;
 use reqwest::{multipart, Body, Client};
-use ::scraper::Html;
 use tokio::{fs::File, runtime, task::LocalSet};
 use tokio_util::codec::{BytesCodec, FramedRead};
 
@@ -100,15 +100,18 @@ fn main() -> Result<()> {
                     let scraper_rc = Rc::new(scraper);
 
                     let local = LocalSet::new();
-                    local.run_until(async move {
-                        let serial_rc = scraper_rc.clone();
+                    local
+                        .run_until(async move {
+                            let serial_rc = scraper_rc.clone();
 
-                        tokio::task::spawn_local(async move {
-                            println!("{}", &serial_rc.serial_text());
-                        }).await?;
+                            tokio::task::spawn_local(async move {
+                                println!("{}", &serial_rc.serial_text());
+                            })
+                            .await?;
 
-                        Ok::<(), Report>(())
-                    }).await?;
+                            Ok::<(), Report>(())
+                        })
+                        .await?;
                 }
 
                 Ok::<(), Report>(())

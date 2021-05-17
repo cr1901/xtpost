@@ -6,9 +6,7 @@ pub struct Scraper {
 
 impl Scraper {
     pub fn new(document: Html) -> Self {
-        Scraper {
-            document
-        }
+        Scraper { document }
     }
 
     pub fn serial_text(&self) -> String {
