@@ -1,12 +1,20 @@
 use scraper::{Html, Selector};
+use reqwest::{Error, IntoUrl};
+use url::{Url, ParseError};
 
+/// This `Scraper` is specific to reenigne's server, but there's no reason
+/// why it can't be spun off into a trait later.
 pub struct Scraper {
     document: Html,
+    server: Url,
 }
 
 impl Scraper {
-    pub fn new(document: Html) -> Self {
-        Scraper { document }
+    pub fn new<T>(document: Html, server: T) -> Result<Self, Error> where T: IntoUrl {
+        Ok(Scraper {
+            document,
+            server: server.into_url()?
+        })
     }
 
     pub fn serial_text(&self) -> String {
@@ -49,13 +57,15 @@ mod test {
         Upload complete.\n\
         Hello, World!\n\
         \n\
+        <img src=\"../d5JESctuMKW88L-e.png\"/>\n\
+        \n\
         Program ended normally.</pre>\n\
         <p>This concludes your XT server session.</p>\n\
         </body>\n\
         </html>";
 
     fn mk_doc() -> Scraper {
-        Scraper::new(Html::parse_document(SAMPLE_OUTPUT))
+        Scraper::new(Html::parse_document(SAMPLE_OUTPUT), "http://reenigne.mooo.com:8088/cgi-bin/xtcancel.exe").unwrap()
     }
 
     #[test]
@@ -72,10 +82,13 @@ mod test {
                     Upload complete.\n\
                     Hello, World!\n\
                     \n\
+                    \n\
+                    \n\
                     Program ended normally.\n\
                     \n\
                     This concludes your XT server session.\n\n",
             out
         );
     }
+
 }

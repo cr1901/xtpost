@@ -87,7 +87,7 @@ fn main() -> Result<()> {
                 }
 
                 let client = Client::builder().user_agent(APP_USER_AGENT).build()?;
-                let resp = client.post(cfg.server).multipart(form).send().await?;
+                let resp = client.post(&cfg.server).multipart(form).send().await?;
 
                 if r.debug {
                     for h in resp.headers() {
@@ -95,8 +95,11 @@ fn main() -> Result<()> {
                     }
                     println!("{}", &resp.text().await?);
                 } else {
+                    // TODO: I'd like to do an async streaming scraper where each task shares the
+                    // input received text (via Rc<String>?). Main benefit would be that serial
+                    // text is printed out as it's received, rather than all at once.
                     let text = &resp.text().await?;
-                    let scraper = scraper::Scraper::new(Html::parse_document(text));
+                    let scraper = scraper::Scraper::new(Html::parse_document(text), cfg.server)?;
                     let scraper_rc = Rc::new(scraper);
 
                     let local = LocalSet::new();
