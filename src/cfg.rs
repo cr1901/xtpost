@@ -1,6 +1,7 @@
 use directories::ProjectDirs;
 use eyre::{self, Result};
 use once_cell::sync::OnceCell;
+use reqwest::IntoUrl;
 use serde::{Deserialize, Serialize};
 
 use std::error;
@@ -132,4 +133,34 @@ pub fn read_cfg_string() -> Result<String> {
 
 pub fn read_cfg() -> Result<Config> {
     Ok(serde_json::from_str(&read_cfg_string()?)?)
+}
+
+pub fn url_to_data_dir<T>(url: T) -> Result<PathBuf> where T: IntoUrl {
+    let data_dir: &PathBuf = data_dir_name()?;
+    let parsed_url = url.into_url()?;
+    let filename = parsed_url
+                      .path_segments()
+                      .ok_or(eyre::eyre!("could not obtain path segments"))?
+                      .next_back()
+                      .ok_or(eyre::eyre!("URL claims to have path, but last path segment was not found"))?;
+
+    let mut full_path = data_dir.clone();
+    full_path.push(filename);
+
+    Ok(full_path)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_url_to_data_dir() {
+        let data_dir: &PathBuf = data_dir_name().unwrap();
+
+        let mut data_file = data_dir.clone();
+        data_file.push("d5JESctuMKW88L-e.png");
+
+        assert_eq!(data_file, url_to_data_dir("http://reenigne.mooo.com:8088/d5JESctuMKW88L-e.png").unwrap());
+    }
 }

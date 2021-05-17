@@ -1,6 +1,6 @@
 use scraper::{Html, Selector};
 use reqwest::{Error, IntoUrl};
-use url::{Url, ParseError};
+use url::Url;
 
 /// This `Scraper` is specific to reenigne's server, but there's no reason
 /// why it can't be spun off into a trait later.
@@ -90,5 +90,4 @@ mod test {
             out
         );
     }
-
 }
