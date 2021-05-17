@@ -1,12 +1,15 @@
 use eyre::{Report, Result};
-use futures::{FutureExt, TryFutureExt};
-use reqwest::{multipart, Body, Client, Response};
-use scraper::{Html, Selector};
-use tokio::{fs::File, runtime};
+use futures::TryFutureExt;
+use reqwest::{multipart, Body, Client};
+use ::scraper::Html;
+use tokio::{fs::File, runtime, task::LocalSet};
 use tokio_util::codec::{BytesCodec, FramedRead};
+
+use std::rc::Rc;
 
 mod args;
 mod cfg;
+mod scraper;
 
 static APP_USER_AGENT: &str = concat!(
     env!("CARGO_CRATE_NAME"),
@@ -92,7 +95,20 @@ fn main() -> Result<()> {
                     }
                     println!("{}", &resp.text().await?);
                 } else {
-                    println!("{}", scrape_text(&get_html_body_from_response(resp).await?));
+                    let text = &resp.text().await?;
+                    let scraper = scraper::Scraper::new(Html::parse_document(text));
+                    let scraper_rc = Rc::new(scraper);
+
+                    let local = LocalSet::new();
+                    local.run_until(async move {
+                        let serial_rc = scraper_rc.clone();
+
+                        tokio::task::spawn_local(async move {
+                            println!("{}", &serial_rc.serial_text());
+                        }).await?;
+
+                        Ok::<(), Report>(())
+                    }).await?;
                 }
 
                 Ok::<(), Report>(())
@@ -101,74 +117,4 @@ fn main() -> Result<()> {
     }
 
     Ok(())
-}
-
-async fn get_html_body_from_response(resp: Response) -> Result<Html> {
-    let text = &resp.text().await?;
-    Ok(Html::parse_document(text))
-}
-
-fn scrape_text(document: &Html) -> String {
-    let p_or_pre = Selector::parse("p, pre").unwrap();
-
-    let mut out = String::new();
-
-    for txt in document.select(&p_or_pre) {
-        // Turn an interator of all text in children elements into
-        // a single String; this is basically a concat.
-        let curr_txt: String = txt.text().collect();
-        out.push_str(&curr_txt);
-        out.push('\n'); // Newline is NOT implicit in concat text.
-        out.push('\n'); // Add another one as a separator.
-    }
-
-    out
-}
-
-#[cfg(test)]
-mod test {
-    use super::scrape_text;
-
-    static SAMPLE_OUTPUT: &str = "<!DOCTYPE html PUBLIC '-//W3C//DTD XHTML 1.0 Strict//EN' 'http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd'>\n\
-        <html xmlns='http://www.w3.org/1999/xhtml' dir='ltr' lang='en-US'>\n\
-        <head>\n\
-        <meta http-equiv='Content-Type' content='text/html; charset=UTF-8' />\n\
-        <title>XT Server - result</title>\n\
-        </head>\n\
-        <body><h1>XT Server</h1>\n\
-        <p>The XT Server has received your file.</p>\n\
-        <form action='http://reenigne.mooo.com:8088/cgi-bin/xtcancel.exe' method='post'>\n\
-        <input type='hidden' name='secret' value='d5JESctuMKW88L-e'/>\n\
-        <button type='submit'>Cancel</button>\n\
-        </form>\n\
-        <pre>Your program is starting\n\
-        Resetting\n\
-        Transferring attempt 0\n\
-        Upload complete.\n\
-        Hello, World!\n\
-        \n\
-        Program ended normally.</pre>\n\
-        <p>This concludes your XT server session.</p>\n\
-        </body>\n\
-        </html>";
-
-    #[test]
-    fn test_scrape_text() {
-        let out = scrape_text(SAMPLE_OUTPUT);
-
-        assert_eq!(
-            "The XT Server has received your file.\n\
-                    \n\
-                    Your program is starting\n\
-                    Resetting\n\
-                    Transferring attempt 0\n\
-                    Upload complete.\n\
-                    Hello, World!\n\
-                    \n\
-                    Program ended normally.\n\
-                    \n\
-                    This concludes your XT server session.\n\n",
-            out
-        );
-    }
 }
