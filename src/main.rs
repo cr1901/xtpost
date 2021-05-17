@@ -1,9 +1,9 @@
 use ::scraper::Html;
 use eyre::{Report, Result};
-use futures::TryFutureExt;
+use futures::{StreamExt, TryFutureExt, TryStreamExt};
 use reqwest::{multipart, Body, Client};
 use tokio::{fs::File, runtime, task::LocalSet};
-use tokio_util::codec::{BytesCodec, FramedRead};
+use tokio_util::codec::{BytesCodec, FramedRead, FramedWrite};
 
 use std::rc::Rc;
 
@@ -23,6 +23,7 @@ fn main() -> Result<()> {
     let args: args::XtPostArgs = argh::from_env();
 
     cfg::write_cfg_if_doesnt_exist()?;
+    cfg::make_data_dir_if_doesnt_exist()?;
 
     match args.cmd {
         args::SubCommands::Cfg(c) => {
@@ -106,11 +107,36 @@ fn main() -> Result<()> {
                     local
                         .run_until(async move {
                             let serial_rc = scraper_rc.clone();
+                            let img_rc = scraper_rc.clone();
 
+                            // Serial capture
                             tokio::task::spawn_local(async move {
                                 println!("{}", &serial_rc.serial_text());
                             })
                             .await?;
+
+                            // Image capture
+                            tokio::task::spawn_local(async move {
+                                let client = &client;
+                                let img_url = match img_rc.image_url()? {
+                                    Some(u) => u,
+                                    None => return Ok::<(), Report>(())
+                                };
+
+                                let resp = client.get(&img_url).send().await?;
+                                let bytes_stream = resp.bytes_stream().map_err(|e| {
+                                    std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e)
+                                });
+
+                                let file_sink = File::create(cfg::url_to_data_dir(&img_url)?)
+                                                    .map_ok(|file| {
+                                                        FramedWrite::new(file, BytesCodec::new())
+                                                    }).flatten_sink();
+
+                                bytes_stream.forward(file_sink).await?;
+
+                                Ok::<(), Report>(())
+                            }).await??;
 
                             Ok::<(), Report>(())
                         })

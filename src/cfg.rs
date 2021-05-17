@@ -100,6 +100,16 @@ pub fn write_cfg_if_doesnt_exist() -> Result<()> {
     Ok(())
 }
 
+pub fn make_data_dir_if_doesnt_exist() -> Result<()> {
+    let data_dir: &PathBuf = data_dir_name()?;
+
+    if !data_dir.exists() {
+        create_dir_all(&data_dir)?;
+    }
+
+    Ok(())
+}
+
 pub fn open_editor() -> Result<()> {
     let cfg_dir: &PathBuf = config_dir_name()?;
 
