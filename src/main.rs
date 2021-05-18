@@ -5,6 +5,7 @@ use reqwest::{multipart, Body, Client};
 use tokio::{fs::File, runtime, task::LocalSet};
 use tokio_util::codec::{BytesCodec, FramedRead, FramedWrite};
 
+use std::path::PathBuf;
 use std::rc::Rc;
 
 mod args;
@@ -133,17 +134,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                         None => return Ok::<_, Report>(None),
                     };
 
-                    let resp = img_client.get(&img_url).send().await?;
-                    let bytes_stream = resp
-                        .bytes_stream()
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
-
-                    let img_file = cfg::url_to_data_dir(&img_url)?;
-                    let file_sink = File::create(&img_file)
-                        .map_ok(|file| FramedWrite::new(file, BytesCodec::new()))
-                        .flatten_sink();
-
-                    bytes_stream.forward(file_sink).await?;
+                    let img_file = get_file(img_client, img_url).await?;
 
                     Ok::<_, Report>(Some(img_file))
                 });
@@ -155,17 +146,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                         None => return Ok::<_, Report>(None),
                     };
 
-                    let resp = file_client.get(&file_url).send().await?;
-                    let bytes_stream = resp
-                        .bytes_stream()
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
-
-                    let filename = cfg::url_to_data_dir(&file_url)?;
-                    let file_sink = File::create(&filename)
-                        .map_ok(|file| FramedWrite::new(file, BytesCodec::new()))
-                        .flatten_sink();
-
-                    bytes_stream.forward(file_sink).await?;
+                    let filename = get_file(file_client, file_url).await?;
 
                     Ok::<_, Report>(Some(filename))
                 });
@@ -189,4 +170,20 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
     }
 
     Ok::<(), Report>(())
+}
+
+async fn get_file(client: Client, url: String) -> Result<PathBuf> {
+    let resp = client.get(&url).send().await?;
+    let bytes_stream = resp
+        .bytes_stream()
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
+
+    let filename = cfg::url_to_data_dir(&url)?;
+    let file_sink = File::create(&filename)
+        .map_ok(|file| FramedWrite::new(file, BytesCodec::new()))
+        .flatten_sink();
+
+    bytes_stream.forward(file_sink).await?;
+
+    Ok(filename)
 }
