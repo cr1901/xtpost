@@ -130,9 +130,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                 let image_task = tokio::task::spawn_local(async move {
                     let img_url = match img_rc.image_url()? {
                         Some(u) => u,
-                        None => {
-                            return Ok::<_, Report>(None)
-                        }
+                        None => return Ok::<_, Report>(None),
                     };
 
                     let resp = img_client.get(&img_url).send().await?;
@@ -154,9 +152,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                 let file_task = tokio::task::spawn_local(async move {
                     let file_url = match file_rc.file_url()? {
                         Some(u) => u,
-                        None => {
-                            return Ok::<_, Report>(None)
-                        }
+                        None => return Ok::<_, Report>(None),
                     };
 
                     let resp = file_client.get(&file_url).send().await?;
