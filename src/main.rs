@@ -120,7 +120,7 @@ fn main() -> Result<()> {
                                 let client = &client;
                                 let img_url = match img_rc.image_url()? {
                                     Some(u) => u,
-                                    None => return Ok::<(), Report>(())
+                                    None => return Ok::<(), Report>(()),
                                 };
 
                                 let resp = client.get(&img_url).send().await?;
@@ -129,14 +129,14 @@ fn main() -> Result<()> {
                                 });
 
                                 let file_sink = File::create(cfg::url_to_data_dir(&img_url)?)
-                                                    .map_ok(|file| {
-                                                        FramedWrite::new(file, BytesCodec::new())
-                                                    }).flatten_sink();
+                                    .map_ok(|file| FramedWrite::new(file, BytesCodec::new()))
+                                    .flatten_sink();
 
                                 bytes_stream.forward(file_sink).await?;
 
                                 Ok::<(), Report>(())
-                            }).await??;
+                            })
+                            .await??;
 
                             Ok::<(), Report>(())
                         })

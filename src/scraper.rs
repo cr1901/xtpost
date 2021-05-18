@@ -1,6 +1,6 @@
 use eyre::{eyre, Report};
-use scraper::{Html, Selector};
 use reqwest::{Error, IntoUrl};
+use scraper::{Html, Selector};
 use url::Url;
 
 /// This `Scraper` is specific to reenigne's server, but there's no reason
@@ -11,10 +11,13 @@ pub struct Scraper {
 }
 
 impl Scraper {
-    pub fn new<T>(document: Html, server: T) -> Result<Self, Error> where T: IntoUrl {
+    pub fn new<T>(document: Html, server: T) -> Result<Self, Error>
+    where
+        T: IntoUrl,
+    {
         Ok(Scraper {
             document,
-            server: server.into_url()?
+            server: server.into_url()?,
         })
     }
 
@@ -22,9 +25,10 @@ impl Scraper {
         let img = Selector::parse("img").unwrap();
 
         if let Some(i) = self.document.select(&img).next() {
-            let rel_path = i.value()
-                            .attr("src")
-                            .ok_or(eyre!("img element did not have a src attribute"))?;
+            let rel_path = i
+                .value()
+                .attr("src")
+                .ok_or(eyre!("img element did not have a src attribute"))?;
 
             Ok(Some(self.server.join(rel_path)?.into()))
         } else {
@@ -80,7 +84,11 @@ mod test {
         </html>";
 
     fn mk_doc() -> Scraper {
-        Scraper::new(Html::parse_document(SAMPLE_OUTPUT), "http://reenigne.mooo.com:8088/cgi-bin/xtcancel.exe").unwrap()
+        Scraper::new(
+            Html::parse_document(SAMPLE_OUTPUT),
+            "http://reenigne.mooo.com:8088/cgi-bin/xtcancel.exe",
+        )
+        .unwrap()
     }
 
     #[test]
@@ -111,6 +119,9 @@ mod test {
         let doc = mk_doc();
         let out = doc.image_url();
 
-        assert_eq!("http://reenigne.mooo.com:8088/d5JESctuMKW88L-e.png", out.unwrap().unwrap());
+        assert_eq!(
+            "http://reenigne.mooo.com:8088/d5JESctuMKW88L-e.png",
+            out.unwrap().unwrap()
+        );
     }
 }
