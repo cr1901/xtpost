@@ -36,6 +36,21 @@ impl Scraper {
         }
     }
 
+    pub fn file_url(&self) -> Result<Option<String>, Report> {
+        let a = Selector::parse("a").unwrap();
+
+        if let Some(f) = self.document.select(&a).next() {
+            let rel_path = f
+                .value()
+                .attr("href")
+                .ok_or(eyre!("aimg element did not have a href attribute"))?;
+
+            Ok(Some(self.server.join(rel_path)?.into()))
+        } else {
+            Ok(None)
+        }
+    }
+
     pub fn serial_text(&self) -> String {
         let p_or_pre = Selector::parse("p, pre").unwrap();
 
@@ -78,6 +93,8 @@ mod test {
         \n\
         <img src=\"../d5JESctuMKW88L-e.png\"/>\n\
         \n\
+        <a href=\"../d5JESctuMKW88L-e.dat\">Captured file</a>\n\
+        \n\
         Program ended normally.</pre>\n\
         <p>This concludes your XT server session.</p>\n\
         </body>\n\
@@ -107,6 +124,8 @@ mod test {
                     \n\
                     \n\
                     \n\
+                    Captured file\n\
+                    \n\
                     Program ended normally.\n\
                     \n\
                     This concludes your XT server session.\n\n",
@@ -121,6 +140,17 @@ mod test {
 
         assert_eq!(
             "http://reenigne.mooo.com:8088/d5JESctuMKW88L-e.png",
+            out.unwrap().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_scrape_file_url() {
+        let doc = mk_doc();
+        let out = doc.file_url();
+
+        assert_eq!(
+            "http://reenigne.mooo.com:8088/d5JESctuMKW88L-e.dat",
             out.unwrap().unwrap()
         );
     }

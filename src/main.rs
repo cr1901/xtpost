@@ -1,6 +1,6 @@
 use ::scraper::Html;
 use eyre::{Report, Result};
-use futures::{future::try_join, StreamExt, TryFutureExt, TryStreamExt};
+use futures::{future::try_join3, StreamExt, TryFutureExt, TryStreamExt};
 use reqwest::{multipart, Body, Client};
 use tokio::{fs::File, runtime, task::LocalSet};
 use tokio_util::codec::{BytesCodec, FramedRead, FramedWrite};
@@ -115,6 +115,10 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
             .run_until(async move {
                 let serial_rc = scraper_rc.clone();
                 let img_rc = scraper_rc.clone();
+                let file_rc = scraper_rc.clone();
+
+                let img_client = client.clone();
+                let file_client = client.clone();
 
                 // Serial capture
                 let serial_task = tokio::task::spawn_local(async move {
@@ -124,7 +128,6 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
 
                 // Image capture
                 let image_task = tokio::task::spawn_local(async move {
-                    let client = &client;
                     let img_url = match img_rc.image_url()? {
                         Some(u) => u,
                         None => {
@@ -132,7 +135,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                         }
                     };
 
-                    let resp = client.get(&img_url).send().await?;
+                    let resp = img_client.get(&img_url).send().await?;
                     let bytes_stream = resp
                         .bytes_stream()
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
@@ -147,12 +150,41 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                     Ok::<_, Report>(Some(img_file))
                 });
 
-                let (_, img_ret) = try_join(serial_task, image_task).await?;
+                // File download
+                let file_task = tokio::task::spawn_local(async move {
+                    let file_url = match file_rc.file_url()? {
+                        Some(u) => u,
+                        None => {
+                            return Ok::<_, Report>(None)
+                        }
+                    };
+
+                    let resp = file_client.get(&file_url).send().await?;
+                    let bytes_stream = resp
+                        .bytes_stream()
+                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
+
+                    let filename = cfg::url_to_data_dir(&file_url)?;
+                    let file_sink = File::create(&filename)
+                        .map_ok(|file| FramedWrite::new(file, BytesCodec::new()))
+                        .flatten_sink();
+
+                    bytes_stream.forward(file_sink).await?;
+
+                    Ok::<_, Report>(Some(filename))
+                });
+
+                let (_, img_ret, file_ret) = try_join3(serial_task, image_task, file_task).await?;
 
                 // TODO: Perhaps all errors can be returned, rather than going in order?
                 match img_ret? {
                     Some(filename) => println!("Image file at: {}", filename.to_str().unwrap()),
                     None => println!("No image file found."),
+                }
+
+                match file_ret? {
+                    Some(filename) => println!("Captured file at: {}", filename.to_str().unwrap()),
+                    None => println!("No captured file found."),
                 }
 
                 Ok::<(), Report>(())
