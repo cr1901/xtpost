@@ -1,6 +1,6 @@
 use ::scraper::Html;
 use eyre::{Report, Result};
-use futures::{StreamExt, TryFutureExt, TryStreamExt};
+use futures::{future::try_join, StreamExt, TryFutureExt, TryStreamExt};
 use reqwest::{multipart, Body, Client};
 use tokio::{fs::File, runtime, task::LocalSet};
 use tokio_util::codec::{BytesCodec, FramedRead, FramedWrite};
@@ -117,17 +117,20 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                 let img_rc = scraper_rc.clone();
 
                 // Serial capture
-                tokio::task::spawn_local(async move {
+                let serial_task = tokio::task::spawn_local(async move {
+                    println!("Server and serial text:");
                     println!("{}", &serial_rc.serial_text());
-                })
-                .await?;
+                });
 
                 // Image capture
-                tokio::task::spawn_local(async move {
+                let image_task = tokio::task::spawn_local(async move {
                     let client = &client;
                     let img_url = match img_rc.image_url()? {
                         Some(u) => u,
-                        None => return Ok::<(), Report>(()),
+                        None => {
+                            println!("No image file found.");
+                            return Ok::<(), Report>(())
+                        }
                     };
 
                     let resp = client.get(&img_url).send().await?;
@@ -135,15 +138,23 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                         .bytes_stream()
                         .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
 
-                    let file_sink = File::create(cfg::url_to_data_dir(&img_url)?)
+                    let img_file = cfg::url_to_data_dir(&img_url)?;
+                    let file_sink = File::create(&img_file)
                         .map_ok(|file| FramedWrite::new(file, BytesCodec::new()))
                         .flatten_sink();
 
                     bytes_stream.forward(file_sink).await?;
 
+                    println!("Image file at: {}", img_file.to_str().unwrap());
                     Ok::<(), Report>(())
-                })
-                .await??;
+                });
+
+                let (_, img_ret) = try_join(serial_task, image_task).await?;
+
+                // TODO: Perhaps all errors can be returned, rather than going in order?
+                if let Err(e) = img_ret {
+                    return Err(e)
+                }
 
                 Ok::<(), Report>(())
             })
