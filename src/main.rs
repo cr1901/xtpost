@@ -128,8 +128,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                     let img_url = match img_rc.image_url()? {
                         Some(u) => u,
                         None => {
-                            println!("No image file found.");
-                            return Ok::<(), Report>(())
+                            return Ok::<_, Report>(None)
                         }
                     };
 
@@ -145,15 +144,15 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
 
                     bytes_stream.forward(file_sink).await?;
 
-                    println!("Image file at: {}", img_file.to_str().unwrap());
-                    Ok::<(), Report>(())
+                    Ok::<_, Report>(Some(img_file))
                 });
 
                 let (_, img_ret) = try_join(serial_task, image_task).await?;
 
                 // TODO: Perhaps all errors can be returned, rather than going in order?
-                if let Err(e) = img_ret {
-                    return Err(e)
+                match img_ret? {
+                    Some(filename) => println!("Image file at: {}", filename.to_str().unwrap()),
+                    None => println!("No image file found."),
                 }
 
                 Ok::<(), Report>(())
