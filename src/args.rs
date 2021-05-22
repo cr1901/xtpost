@@ -25,7 +25,7 @@ pub struct Version {}
 #[argh(subcommand, name = "cfg")]
 pub struct CfgArgs {
     #[argh(switch, short = 'e')]
-    /// edit settings.json
+    /// edit settings.json (override default editor with EDITOR environment variable)
     pub edit: bool,
     /// print settings.json to stdout
     #[argh(switch, short = 'c')]
