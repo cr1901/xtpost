@@ -119,14 +119,6 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                 let file_rc = scraper_rc.clone();
                 let audio_rc = scraper_rc.clone();
 
-                let img_client = client.clone();
-                let file_client = client.clone();
-                let audio_client = client.clone();
-
-                let img_default = r.image;
-                let file_default = r.file;
-                let audio_default = r.audio;
-
                 // Serial capture
                 let serial_task = tokio::task::spawn_local(async move {
                     println!("Server and serial text:");
@@ -134,40 +126,25 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                 });
 
                 // Image capture
-                let image_task = tokio::task::spawn_local(async move {
-                    let img_url = match img_rc.image_url()? {
-                        Some(u) => u,
-                        None => return Ok::<_, Report>(None),
-                    };
-
-                    let img_file = get_file(img_client, img_url, img_default).await?;
-
-                    Ok::<_, Report>(Some(img_file))
-                });
+                let image_task = tokio::task::spawn_local(get_file(
+                    client.clone(),
+                    r.image,
+                    move || img_rc.image_url()
+                ));
 
                 // File download
-                let file_task = tokio::task::spawn_local(async move {
-                    let file_url = match file_rc.file_url()? {
-                        Some(u) => u,
-                        None => return Ok::<_, Report>(None),
-                    };
-
-                    let filename = get_file(file_client, file_url, file_default).await?;
-
-                    Ok::<_, Report>(Some(filename))
-                });
+                let file_task = tokio::task::spawn_local(get_file(
+                    client.clone(),
+                    r.file,
+                    move || file_rc.file_url()
+                ));
 
                 // Audio download
-                let audio_task = tokio::task::spawn_local(async move {
-                    let audio_url = match audio_rc.audio_url()? {
-                        Some(u) => u,
-                        None => return Ok::<_, Report>(None),
-                    };
-
-                    let filename = get_file(audio_client, audio_url, audio_default).await?;
-
-                    Ok::<_, Report>(Some(filename))
-                });
+                let audio_task = tokio::task::spawn_local(get_file(
+                    client.clone(),
+                    r.audio,
+                    move || audio_rc.audio_url()
+                ));
 
                 let (_, img_ret, file_ret, audio_ret) =
                     try_join4(serial_task, image_task, file_task, audio_task).await?;
@@ -196,11 +173,17 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
     Ok::<(), Report>(())
 }
 
-async fn get_file(
+async fn get_file<F>(
     client: Client,
-    url: String,
     filename_override: Option<String>,
-) -> Result<PathBuf> {
+    get_url_fn: F,
+) -> Result<Option<PathBuf>>
+where F: FnOnce() -> Result<Option<String>> {
+    let url = match get_url_fn()? {
+        Some(u) => u,
+        None => return Ok(None),
+    };
+
     let resp = client.get(&url).send().await?;
     let bytes_stream = resp
         .bytes_stream()
@@ -214,5 +197,5 @@ async fn get_file(
 
     bytes_stream.forward(file_sink).await?;
 
-    Ok(filename)
+    Ok(Some(filename))
 }
