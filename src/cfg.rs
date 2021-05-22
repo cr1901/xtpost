@@ -4,6 +4,7 @@ use once_cell::sync::OnceCell;
 use reqwest::IntoUrl;
 use serde::{Deserialize, Serialize};
 
+use std::env;
 use std::error;
 use std::fmt;
 use std::fs::{create_dir_all, File};
@@ -116,13 +117,12 @@ pub fn open_editor() -> Result<()> {
     let mut cfg_file = cfg_dir.clone();
     cfg_file.push("settings.json");
 
-    let editor = if cfg!(target_os = "windows") {
-        "notepad"
-    } else {
-        "vi"
-    };
-
-    Command::new(editor).args(&[cfg_file]).status()?;
+    Command::new(env::var("EDITOR")
+        .unwrap_or_else(|_| if cfg!(target_os = "windows") {
+            "notepad"
+        } else {
+            "vi"
+        }.to_string())).args(&[cfg_file]).status()?;
 
     Ok(())
 }
