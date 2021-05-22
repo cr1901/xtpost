@@ -1,6 +1,6 @@
 use ::scraper::Html;
 use eyre::{Report, Result};
-use futures::{future::try_join3, StreamExt, TryFutureExt, TryStreamExt};
+use futures::{future::try_join4, StreamExt, TryFutureExt, TryStreamExt};
 use reqwest::{multipart, Body, Client};
 use tokio::{fs::File, runtime, task::LocalSet};
 use tokio_util::codec::{BytesCodec, FramedRead, FramedWrite};
@@ -117,9 +117,11 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                 let serial_rc = scraper_rc.clone();
                 let img_rc = scraper_rc.clone();
                 let file_rc = scraper_rc.clone();
+                let audio_rc = scraper_rc.clone();
 
                 let img_client = client.clone();
                 let file_client = client.clone();
+                let audio_client = client.clone();
 
                 // Serial capture
                 let serial_task = tokio::task::spawn_local(async move {
@@ -151,7 +153,19 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                     Ok::<_, Report>(Some(filename))
                 });
 
-                let (_, img_ret, file_ret) = try_join3(serial_task, image_task, file_task).await?;
+                // Audio download
+                let audio_task = tokio::task::spawn_local(async move {
+                    let audio_url = match audio_rc.audio_url()? {
+                        Some(u) => u,
+                        None => return Ok::<_, Report>(None),
+                    };
+
+                    let filename = get_file(audio_client, audio_url).await?;
+
+                    Ok::<_, Report>(Some(filename))
+                });
+
+                let (_, img_ret, file_ret, audio_ret) = try_join4(serial_task, image_task, file_task, audio_task).await?;
 
                 // TODO: Perhaps all errors can be returned, rather than going in order?
                 match img_ret? {
@@ -162,6 +176,11 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                 match file_ret? {
                     Some(filename) => println!("Captured file at: {}", filename.to_str().unwrap()),
                     None => println!("No captured file found."),
+                }
+
+                match audio_ret? {
+                    Some(filename) => println!("Captured audio at: {}", filename.to_str().unwrap()),
+                    None => println!("No captured audio found."),
                 }
 
                 Ok::<(), Report>(())

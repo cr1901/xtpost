@@ -43,7 +43,22 @@ impl Scraper {
             let rel_path = f
                 .value()
                 .attr("href")
-                .ok_or(eyre!("aimg element did not have a href attribute"))?;
+                .ok_or(eyre!("a element did not have a href attribute"))?;
+
+            Ok(Some(self.server.join(rel_path)?.into()))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn audio_url(&self) -> Result<Option<String>, Report> {
+        let embed = Selector::parse("embed").unwrap();
+
+        if let Some(f) = self.document.select(&embed).next() {
+            let rel_path = f
+                .value()
+                .attr("src")
+                .ok_or(eyre!("embed element did not have a src attribute"))?;
 
             Ok(Some(self.server.join(rel_path)?.into()))
         } else {
@@ -95,6 +110,8 @@ mod test {
         \n\
         <a href=\"../d5JESctuMKW88L-e.dat\">Captured file</a>\n\
         \n\
+        <embed height=\"50\" width=\"100\" src=\"../d5JESctuMKW88L-e.mp3\"><a href=\"../d5JESctuMKW88L-e.mp3\">Recorded audio</a></embed>\n\
+        \n\
         Program ended normally.</pre>\n\
         <p>This concludes your XT server session.</p>\n\
         </body>\n\
@@ -126,6 +143,8 @@ mod test {
                     \n\
                     Captured file\n\
                     \n\
+                    Recorded audio\n\
+                    \n\
                     Program ended normally.\n\
                     \n\
                     This concludes your XT server session.\n\n",
@@ -151,6 +170,17 @@ mod test {
 
         assert_eq!(
             "http://reenigne.mooo.com:8088/d5JESctuMKW88L-e.dat",
+            out.unwrap().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_scrape_audio_url() {
+        let doc = mk_doc();
+        let out = doc.audio_url();
+
+        assert_eq!(
+            "http://reenigne.mooo.com:8088/d5JESctuMKW88L-e.mp3",
             out.unwrap().unwrap()
         );
     }
