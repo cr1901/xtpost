@@ -82,7 +82,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
     let file_body = Body::wrap_stream(file_stream);
     let file_part = multipart::Part::stream_with_length(file_body, file_len)
         .mime_str("application/octet-stream")?
-        .file_name(r.binary);
+        .file_name(r.binary.clone());
     // .file_name(&r.binary);
     // Borrow value does not live long enough?
 
@@ -123,6 +123,10 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                 let file_client = client.clone();
                 let audio_client = client.clone();
 
+                let img_default = r.image;
+                let file_default = r.file;
+                let audio_default = r.audio;
+
                 // Serial capture
                 let serial_task = tokio::task::spawn_local(async move {
                     println!("Server and serial text:");
@@ -136,7 +140,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                         None => return Ok::<_, Report>(None),
                     };
 
-                    let img_file = get_file(img_client, img_url).await?;
+                    let img_file = get_file(img_client, img_url, img_default).await?;
 
                     Ok::<_, Report>(Some(img_file))
                 });
@@ -148,7 +152,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                         None => return Ok::<_, Report>(None),
                     };
 
-                    let filename = get_file(file_client, file_url).await?;
+                    let filename = get_file(file_client, file_url, file_default).await?;
 
                     Ok::<_, Report>(Some(filename))
                 });
@@ -160,7 +164,7 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                         None => return Ok::<_, Report>(None),
                     };
 
-                    let filename = get_file(audio_client, audio_url).await?;
+                    let filename = get_file(audio_client, audio_url, audio_default).await?;
 
                     Ok::<_, Report>(Some(filename))
                 });
@@ -191,13 +195,14 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
     Ok::<(), Report>(())
 }
 
-async fn get_file(client: Client, url: String) -> Result<PathBuf> {
+async fn get_file(client: Client, url: String, filename_override: Option<String>) -> Result<PathBuf> {
     let resp = client.get(&url).send().await?;
     let bytes_stream = resp
         .bytes_stream()
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
 
-    let filename = cfg::url_to_data_dir(&url)?;
+    let filename = filename_override
+        .map_or_else(|| cfg::url_to_data_dir(&url), |s| Ok(PathBuf::from(s)))?;
     let file_sink = File::create(&filename)
         .map_ok(|file| FramedWrite::new(file, BytesCodec::new()))
         .flatten_sink();

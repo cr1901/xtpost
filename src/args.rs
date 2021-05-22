@@ -42,6 +42,15 @@ pub struct RunArgs {
     /// debug mode (return raw HTML and HTTP headers)
     #[argh(switch, short = 'd')]
     pub debug: bool,
+    /// override filename of captured image
+    #[argh(option, short = 'i')]
+    pub image: Option<String>,
+    /// override filename of captured file
+    #[argh(option, short = 'f')]
+    pub file: Option<String>,
+    /// override filename of captured audio
+    #[argh(option, short = 'a')]
+    pub audio: Option<String>,
     #[argh(positional)]
     pub binary: String,
 }
