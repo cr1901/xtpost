@@ -117,12 +117,16 @@ pub fn open_editor() -> Result<()> {
     let mut cfg_file = cfg_dir.clone();
     cfg_file.push("settings.json");
 
-    Command::new(env::var("EDITOR")
-        .unwrap_or_else(|_| if cfg!(target_os = "windows") {
+    Command::new(env::var("EDITOR").unwrap_or_else(|_| {
+        if cfg!(target_os = "windows") {
             "notepad"
         } else {
             "vi"
-        }.to_string())).args(&[cfg_file]).status()?;
+        }
+        .to_string()
+    }))
+    .args(&[cfg_file])
+    .status()?;
 
     Ok(())
 }
@@ -153,11 +157,11 @@ where
     let parsed_url = url.into_url()?;
     let filename = parsed_url
         .path_segments()
-        .ok_or(eyre::eyre!("could not obtain path segments"))?
+        .ok_or_else(|| eyre::eyre!("could not obtain path segments"))?
         .next_back()
-        .ok_or(eyre::eyre!(
-            "URL claims to have path, but last path segment was not found"
-        ))?;
+        .ok_or_else(|| {
+            eyre::eyre!("URL claims to have path, but last path segment was not found")
+        })?;
 
     let mut full_path = data_dir.clone();
     full_path.push(filename);

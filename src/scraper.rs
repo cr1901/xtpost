@@ -28,7 +28,7 @@ impl Scraper {
             let rel_path = i
                 .value()
                 .attr("src")
-                .ok_or(eyre!("img element did not have a src attribute"))?;
+                .ok_or_else(|| eyre!("img element did not have a src attribute"))?;
 
             Ok(Some(self.server.join(rel_path)?.into()))
         } else {
@@ -43,7 +43,7 @@ impl Scraper {
             let rel_path = f
                 .value()
                 .attr("href")
-                .ok_or(eyre!("a element did not have a href attribute"))?;
+                .ok_or_else(|| eyre!("a element did not have a href attribute"))?;
 
             Ok(Some(self.server.join(rel_path)?.into()))
         } else {
@@ -58,7 +58,7 @@ impl Scraper {
             let rel_path = f
                 .value()
                 .attr("src")
-                .ok_or(eyre!("embed element did not have a src attribute"))?;
+                .ok_or_else(|| eyre!("embed element did not have a src attribute"))?;
 
             Ok(Some(self.server.join(rel_path)?.into()))
         } else {

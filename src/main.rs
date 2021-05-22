@@ -169,7 +169,8 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                     Ok::<_, Report>(Some(filename))
                 });
 
-                let (_, img_ret, file_ret, audio_ret) = try_join4(serial_task, image_task, file_task, audio_task).await?;
+                let (_, img_ret, file_ret, audio_ret) =
+                    try_join4(serial_task, image_task, file_task, audio_task).await?;
 
                 // TODO: Perhaps all errors can be returned, rather than going in order?
                 match img_ret? {
@@ -195,14 +196,18 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
     Ok::<(), Report>(())
 }
 
-async fn get_file(client: Client, url: String, filename_override: Option<String>) -> Result<PathBuf> {
+async fn get_file(
+    client: Client,
+    url: String,
+    filename_override: Option<String>,
+) -> Result<PathBuf> {
     let resp = client.get(&url).send().await?;
     let bytes_stream = resp
         .bytes_stream()
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
 
-    let filename = filename_override
-        .map_or_else(|| cfg::url_to_data_dir(&url), |s| Ok(PathBuf::from(s)))?;
+    let filename =
+        filename_override.map_or_else(|| cfg::url_to_data_dir(&url), |s| Ok(PathBuf::from(s)))?;
     let file_sink = File::create(&filename)
         .map_ok(|file| FramedWrite::new(file, BytesCodec::new()))
         .flatten_sink();
