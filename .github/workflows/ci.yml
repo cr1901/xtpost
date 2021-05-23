@@ -35,6 +35,11 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
 
+      - name: Build custom Docker image
+        # All Linux targets need libssl.
+        if: matrix.os == 'ubuntu-latest' && (matrix.target != 'x86_64-pc-windows-gnu')
+        run: docker build -t xtpost/${{ matrix.target }} ci/docker/${{ matrix.target }}
+
       - name: Debug build
         uses: actions-rs/cargo@v1
         if: "!startsWith(github.ref, 'refs/tags/v')"
@@ -90,8 +95,8 @@ jobs:
           TARGET: ${{ matrix.target }}
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
-          chmod +x ${GITHUB_WORKSPACE}/.github/prepare_release.sh
-          ${GITHUB_WORKSPACE}/.github/prepare_release.sh
+          chmod +x ${GITHUB_WORKSPACE}/ci/prepare_release.sh
+          ${GITHUB_WORKSPACE}/ci/prepare_release.sh
 
       # https://github.com/softprops/action-gh-release/issues/4#issuecomment-540245702
       - if: startsWith(github.ref, 'refs/tags/v')
