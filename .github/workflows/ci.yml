@@ -1,0 +1,107 @@
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    name: ${{ matrix.os }} for ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        target:
+          - aarch64-unknown-linux-gnu
+          - armv7-unknown-linux-gnueabihf
+          - x86_64-apple-darwin
+          - x86_64-unknown-linux-gnu
+          - x86_64-pc-windows-gnu
+        include:
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: armv7-unknown-linux-gnueabihf
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            target: x86_64-pc-windows-gnu
+    env:
+      CRATE_NAME: xtpost
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Debug build
+        uses: actions-rs/cargo@v1
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        with:
+          command: build
+          args: --target=${{ matrix.target }}
+          use-cross: true
+
+      - name: Release build
+        uses: actions-rs/cargo@v1
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        with:
+          command: build
+          args: --target=${{ matrix.target }} --release
+          use-cross: true
+
+      - name: Debug test
+        uses: actions-rs/cargo@v1
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        with:
+          command: test
+          args: --target=${{ matrix.target }}
+          use-cross: true
+
+      - name: Release test
+        uses: actions-rs/cargo@v1
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        with:
+          command: test
+          args: --target=${{ matrix.target }} --release
+          use-cross: true
+
+      - name: Debug run
+        uses: actions-rs/cargo@v1
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        with:
+          command: run
+          args: --target=${{ matrix.target }} -- version
+          use-cross: true
+
+      - name: Release run
+        uses: actions-rs/cargo@v1
+        if: "!startsWith(github.ref, 'refs/tags/v')"
+        with:
+          command: run
+          args: --target=${{ matrix.target }} --release -- version
+          use-cross: true
+
+      - name: "Prepare release"
+        env:
+          OS: ${{ matrix.os }}
+          TAG: ${GITHUB_REF#refs/*/}
+          TARGET: ${{ matrix.target }}
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          chmod +x ${GITHUB_WORKSPACE}/.github/prepare_release.sh
+          ${GITHUB_WORKSPACE}/.github/prepare_release.sh
+
+      # https://github.com/softprops/action-gh-release/issues/4#issuecomment-540245702
+      - if: startsWith(github.ref, 'refs/tags/v')
+        id: release
+        run: echo ::set-output name=version::${CRATE_NAME}-${GITHUB_REF#refs/*/}-${{ matrix.target }}
+
+      - name: "Create release"
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          files: ${{ steps.release.outputs.version }}.*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
