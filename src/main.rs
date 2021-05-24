@@ -23,8 +23,15 @@ static APP_USER_AGENT: &str = concat!(
 fn main() -> Result<()> {
     let args: args::XtPostArgs = argh::from_env();
 
-    cfg::write_cfg_if_doesnt_exist()?;
-    cfg::make_data_dir_if_doesnt_exist()?;
+    match args.cmd {
+        // Don't bother doing work if all we want is version string.
+        // Also unbreaks CI :D!
+        args::SubCommands::Version(_) => {}
+        _ => {
+            cfg::write_cfg_if_doesnt_exist()?;
+            cfg::make_data_dir_if_doesnt_exist()?;
+        }
+    }
 
     match args.cmd {
         args::SubCommands::Cfg(c) => {
@@ -126,25 +133,22 @@ async fn talk_to_xt(r: args::RunArgs, cfg: cfg::Config) -> Result<()> {
                 });
 
                 // Image capture
-                let image_task = tokio::task::spawn_local(get_file(
-                    client.clone(),
-                    r.image,
-                    move || img_rc.image_url()
-                ));
+                let image_task =
+                    tokio::task::spawn_local(get_file(client.clone(), r.image, move || {
+                        img_rc.image_url()
+                    }));
 
                 // File download
-                let file_task = tokio::task::spawn_local(get_file(
-                    client.clone(),
-                    r.file,
-                    move || file_rc.file_url()
-                ));
+                let file_task =
+                    tokio::task::spawn_local(get_file(client.clone(), r.file, move || {
+                        file_rc.file_url()
+                    }));
 
                 // Audio download
-                let audio_task = tokio::task::spawn_local(get_file(
-                    client.clone(),
-                    r.audio,
-                    move || audio_rc.audio_url()
-                ));
+                let audio_task =
+                    tokio::task::spawn_local(get_file(client.clone(), r.audio, move || {
+                        audio_rc.audio_url()
+                    }));
 
                 let (_, img_ret, file_ret, audio_ret) =
                     try_join4(serial_task, image_task, file_task, audio_task).await?;
@@ -178,7 +182,9 @@ async fn get_file<F>(
     filename_override: Option<String>,
     get_url_fn: F,
 ) -> Result<Option<PathBuf>>
-where F: FnOnce() -> Result<Option<String>> {
+where
+    F: FnOnce() -> Result<Option<String>>,
+{
     let url = match get_url_fn()? {
         Some(u) => u,
         None => return Ok(None),
