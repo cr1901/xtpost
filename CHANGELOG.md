@@ -18,9 +18,9 @@ Initial release.
   [XT server](http://www.reenigne.org/xtserver/). Serial output (`int 0x63`,
   `int 0x64`, `int 0x65`), image capture (`int 0x60`), file capture
   (`int 0x66`), and audio capture (`int 0x61`, `int 0x62`) are all supported.
-<!-- - Use [Github Actions](https://github.com/cr1901/xtpost/actions) and
+- Use [Github Actions](https://github.com/cr1901/xtpost/actions) and
   [Github Releases](https://github.com/cr1901/xtpost/releases) to support
-  x86_64 Windows, MacOS, and Linux binaries. -->
+  x86_64 Windows, MacOS, and Linux binaries.
 
 [reqwest]: https://github.com/seanmonstar/reqwest
 
