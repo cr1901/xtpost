@@ -11,7 +11,7 @@ for bug fixes in between minor versions.
 
 ## [Unreleased]
 
-## v0.1.0 <!-- - 2021-05-22 -->
+## v0.1.0 - 2021-05-23
 Initial release.
 
 - Client program uses [reqwest] to interface to [reenigne](https://github.com/reenigne)'s
